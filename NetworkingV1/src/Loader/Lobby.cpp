@@ -379,7 +379,7 @@ Lobby::TaskClient( ThreadParamBlock_t *tpb )
             char message[ 1024 ];
             // printf( "ClientSocket: %p\n", tpb->client );
             int32_t len = SDLNet_TCP_Recv( tpb->client, message, 1024 );
-            if ( 0 == len )
+            if (  1 > len )
             {
                 tpb->online = false;
                 printf( "Player left the server\n" );
