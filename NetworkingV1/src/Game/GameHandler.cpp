@@ -65,7 +65,7 @@ GameHandler::handleStartScreen()
                 working = false;
             }
             //cInput( "Choose real Player count: ", data.realPlayer );
-            data.realPlayer = 4;
+            data.realPlayer = 20;
             data.comPlayer = 0;
             //printf( "Leave Empty for Localhost | " );
             //cInput( "Set IP: ", data.host );
