@@ -42,7 +42,9 @@ Server::readData(std::string& data)
 std::string
 Server::getData()
 {
-    return m_File->readDataFromFile("specificUser.json");
+    std::string rv = m_File->readDataFromFile("specificUser.json");
+    m_File->createEmptyFile("specificUser.json");
+    return rv;
 }
 
 void
@@ -501,6 +503,7 @@ Server::performAction(uint32_t actionType)
     {
         if (m_OutputData.empty())
         {
+            printf("NEVER DO THIS\n");
             m_File->writeJsonData("specificUser.json", m_UserData);
         }
         else {
