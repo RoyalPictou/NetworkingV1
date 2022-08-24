@@ -17,7 +17,8 @@ public:
         GENERATE_PLAYER_UUID = 1,
         FIND_PLAYER_UUID,
         GATHER_CLIENT_DATA,
-
+        LOAD_SERVER_DATA,
+        RETRIEVE_ALLOWED_SERVER_DATA,
         KEY_LIST_NOACTION,
         KEY_LIST_MARKED,
         KEY_LIST_EMPTY,
@@ -30,9 +31,9 @@ public:
     typedef struct
     {
         
-        FileHandler::DataEntry_t       data;
-        FileHandler::StringPairMap_t   pairMap;
-        FileHandler::StringSingleMap_t singleMap;
+        FileHandler::DataEntry_t      * data;
+        FileHandler::StringPairMap_t  * pairMap;
+        FileHandler::StringSingleMap_t * singleMap;
         std::string                     key;
         size_t                          singleCount;
         size_t                          pairCount;
@@ -66,6 +67,8 @@ public:
     bool createEntry( EntryPair_t entry, Entry_t *data );
 
     bool performAction( uint32_t actionType );
+
+    bool performAction2(uint32_t actionType);
 
 private:
     FileHandler *           m_File;

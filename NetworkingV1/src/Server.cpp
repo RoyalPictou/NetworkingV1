@@ -17,23 +17,24 @@ void
 Server::readData(std::string& data)
 {
 
-    m_UserData = m_File->readJsonData(data);
+    m_OutputData = m_File->readJsonData(data);
     bool result = false;
     do
     {
-        if (m_UserData.empty())
+        if (m_OutputData.empty() && m_UserData.empty())
         {
-            performAction(GENERATE_PLAYER_UUID);
+            performAction2(LOAD_SERVER_DATA);
+            performAction2(GENERATE_PLAYER_UUID);
             continue; // need to Gather client data
         }
         else
         {
-            result = performAction(GATHER_CLIENT_DATA);
+            result = performAction2(GATHER_CLIENT_DATA);
             if (result)
             {
                 break;
             }
-            performAction(GENERATE_PLAYER_UUID);
+            performAction2(GENERATE_PLAYER_UUID);
             break;
         }
     } while (true);
@@ -87,11 +88,11 @@ Server::createEntry(EntryPair_t entry, Entry_t* data)
     // if ( data )
     //{
     data->key = entry.first;
-    data->data = entry.second;
-    data->pairMap = data->data.arrayEntry;
-    data->singleMap = data->data.singleEntry;
-    data->singleCount = data->singleMap.size();
-    data->pairCount = data->pairMap.size();
+    data->data = &entry.second;
+    data->pairMap = &data->data->arrayEntry; // .data->arrayEntry;
+    data->singleMap = &data->data->singleEntry;
+    data->singleCount = data->singleMap->size();
+    data->pairCount = data->pairMap->size();
     data->type = TYPE_UNKNOWN;
     if (data->pairCount + data->singleCount)
     {
@@ -161,9 +162,16 @@ Server::StringMap_t
 Server::getKeys(std::string key, FileHandler::DataEntry_t& userEntryFromUUID, Entry_t* entry)
 {
     Server::StringMap_t            rv;
-    FileHandler::StringPairMap_t   pairMap = entry->pairMap;
-    FileHandler::StringPairMapIt_t publicKeyIt = pairMap.find(key);
-    if (pairMap.end() == publicKeyIt)
+    do
+    {
+
+
+while(false);///<pseudoloop
+}
+    FileHandler::StringPairMap_t* pairMap = entry->pairMap;
+
+    FileHandler::StringPairMapIt_t publicKeyIt = pairMap->find(key);
+    if (pairMap->end() == publicKeyIt)
     {
         entry->type = TYPE_PRIVATE;
         FileHandler::StringSingleMap_t nodataEntry;
@@ -193,7 +201,6 @@ Server::getKeys(std::string key, FileHandler::DataEntry_t& userEntryFromUUID, En
     }
     return rv;
 }
-
 bool
 Server::performAction(uint32_t actionType)
 {
@@ -236,6 +243,64 @@ Server::performAction(uint32_t actionType)
         break;
     case GATHER_CLIENT_DATA:
         m_OutputData.clear();
+
+
+
+    }
+
+
+    if (rv)
+    {
+        m_File->writeJsonData("specificUser.json", m_UserData);
+        m_File->writeJsonData("server.json", m_ServerData);
+    }
+    return rv;
+}
+bool
+Server::performAction2(uint32_t actionType)
+{
+    bool       rv = false;
+
+
+    switch (actionType)
+    {
+    default:
+        printf("Unkown communication type -> Check Server::performAction\n");
+        break;
+    case GENERATE_PLAYER_UUID:
+    {
+        SimpleUUID id;
+
+        std::string                uuidString = std::to_string(id);
+        FileHandler::StringSingleMap_t firstData;
+        firstData["name"] = "unkownUser";
+        firstData["level"] = "1";
+        firstData["firstLogin"] = currentDateTime();
+
+        m_ServerData[uuidString].singleEntry = firstData;
+        m_UserData[uuidString].singleEntry = firstData;
+        break;
+    }
+    case LOAD_SERVER_DATA:
+    {
+        std::string                    fileStringData = m_File->readDataFromFile("server.json");
+        m_ServerData = m_File->readJsonData(fileStringData);
+        break;
+    }
+    case GATHER_CLIENT_DATA:
+    {
+        Entry_t* serverEntry = new Entry_t;
+        Entry_t* userEntry = new Entry_t;
+        if (!(serverEntry && userEntry))
+        {
+            actionType = MEMORY_ERROR;
+            printf("Memory Error in Server::performAction\n");
+        }
+        std::vector< std::string > keyList = { "dataType", "public" };
+        StringMap_t                publicKeyMap;
+        StringMap_t                deleteKeyMap;
+        FileHandler::ConfigIt_t currentServerIt;
+        //m_OutputData.clear();
         for (EntryPair_t& userEntryElement : m_UserData)
         {
             rv = createEntry(userEntryElement, userEntry);
@@ -267,8 +332,8 @@ Server::performAction(uint32_t actionType)
 
 
                     // look up key for deleting whole UUID entry
-                    FileHandler::StringSingleMapIt_t deleteUserIt = userEntry->singleMap.find("deleteUser");
-                    if (deleteUserIt != userEntry->singleMap.cend())
+                    FileHandler::StringSingleMapIt_t deleteUserIt = userEntry->singleMap->find("deleteUser");
+                    if (deleteUserIt != userEntry->singleMap->cend())
                     {
                         //Entry found, now check if param ist set to true
                         if (0 == deleteUserIt->second.compare("true"))
@@ -280,12 +345,12 @@ Server::performAction(uint32_t actionType)
                         }
                     }
 
-                    for (auto& userSingleKey : userEntry->singleMap)
+                    for (auto& userSingleKey : *userEntry->singleMap)
                     {
 
-                        serverEntry->singleMap[userSingleKey.first] = userSingleKey.second;
+                        serverEntry->singleMap->at(userSingleKey.first) = userSingleKey.second;
                     }
-                    FileHandler::StringPairMap_t& pairMap = userEntry->pairMap;
+                    FileHandler::StringPairMap_t& pairMap = *userEntry->pairMap;
                     FileHandler::StringPairMapIt_t deleteIt = pairMap.find("deleteKeys");
                     if (pairMap.end() != deleteIt)
                     {
@@ -301,7 +366,7 @@ Server::performAction(uint32_t actionType)
                         FileHandler::StringSingleMap_t userDataArrayMap = userDataArray.values;
                         for (auto& userPairMapValues : userDataArrayMap)
                         {
-                            serverEntry->pairMap[userPairMapEntry.first].values[userPairMapValues.first] = userPairMapValues.second;
+                            serverEntry->pairMap->at(userPairMapEntry.first).values[userPairMapValues.first] = userPairMapValues.second;
                         }
                     }
 
@@ -331,7 +396,7 @@ Server::performAction(uint32_t actionType)
                 {
 
                 case TYPE_PUBLIC:
-                    for (auto& singleKey : serverEntry->singleMap)
+                    for (auto& singleKey : *serverEntry->singleMap)
                     {
                         keyComponent = findKey(publicKeyMap, singleKey.first);
                         if (KEY_LIST_EMPTY == keyComponent.action)
@@ -343,7 +408,7 @@ Server::performAction(uint32_t actionType)
                             userEntryFromUUID.singleEntry[singleKey.first] = singleKey.second;
                         }
                     }
-                    for (auto& pairMapEntry : serverEntry->pairMap)
+                    for (auto& pairMapEntry : *serverEntry->pairMap)
                     {
                         std::string arrayKey = pairMapEntry.first;
                         if (0 == arrayKey.compare("public"))
@@ -388,9 +453,9 @@ Server::performAction(uint32_t actionType)
                     break;
                 case TYPE_ALL:
                     //FileHandler::StringSingleMap_t & singlemap = serverEntry->singleMap;
-                    singleTt = serverEntry->singleMap.begin();
+                    singleTt = serverEntry->singleMap->begin();
                     //FileHandler::StringSingleMapIt_t singleCurrentIt;
-                    while (singleTt != serverEntry->singleMap.cend())
+                    while (singleTt != serverEntry->singleMap->cend())
                     {
                         keyComponent = findKey(deleteKeyMap, singleTt->first);
                         singleCurrentIt = singleTt++;
@@ -400,12 +465,12 @@ Server::performAction(uint32_t actionType)
                         }
                         if (KEY_LIST_MARKED == keyComponent.action)
                         {
-                            serverEntry->singleMap.erase(singleCurrentIt);
+                            serverEntry->singleMap->erase(singleCurrentIt);
                         }
                     }
-                    pairIt = serverEntry->pairMap.begin();
+                    pairIt = serverEntry->pairMap->begin();
                     //FileHandler::StringPairMapIt_t userPairCurrentIt;
-                    while (pairIt != serverEntry->pairMap.cend())
+                    while (pairIt != serverEntry->pairMap->cend())
                     {
                         std::string arrayKey = pairIt->first;
                         if (0 == arrayKey.compare("deleteKeys")) // weird
@@ -419,7 +484,7 @@ Server::performAction(uint32_t actionType)
                             userPairCurrentIt = pairIt++;
                             std::string eraseKey = userPairCurrentIt->first;
                             //userEntryFromUUID.arrayEntry.erase( eraseKey );
-                            serverEntry->pairMap.erase(eraseKey);
+                            serverEntry->pairMap->erase(eraseKey);
                             continue; // No more actions after deleting whole array
                         }
                         if (KEY_LIST_EMPTY == keyComponent.action)
@@ -464,16 +529,16 @@ Server::performAction(uint32_t actionType)
                         userPairCurrentIt = pairIt++; // could also be serverPairCurrentIt
                         if (userPairCurrentIt->second.values.empty())
                         {
-                            serverEntry->pairMap.erase(userPairCurrentIt);
+                            serverEntry->pairMap->erase(userPairCurrentIt);
                         }
                     }
-                    userEntryFromUUID.singleEntry = serverEntry->singleMap; // bad copy instructions
-                    userEntryFromUUID.arrayEntry = serverEntry->pairMap;
+                    userEntryFromUUID.singleEntry = *serverEntry->singleMap; // bad copy instructions
+                    userEntryFromUUID.arrayEntry = *serverEntry->pairMap;
                     break;
                 default:
                     break;
                 }
-                uuidString = serverEntry->key;
+                std::string uuidString = serverEntry->key;
                 switch (serverEntry->type)
                 {
                 default:
@@ -484,10 +549,10 @@ Server::performAction(uint32_t actionType)
 
                     break;
                 case TYPE_ALL:
-                    serverEntry->data.singleEntry = serverEntry->singleMap; // Refactor
-                    serverEntry->data.arrayEntry = serverEntry->pairMap;   // Refactor
-                    m_ServerData[uuidString] = serverEntry->data;      // make single and pair map a ref to data field
-
+                    //serverEntry->data.singleEntry = serverEntry->singleMap; // Refactor
+                    //serverEntry->data.arrayEntry = serverEntry->pairMap;   // Refactor
+                   // m_ServerData[uuidString] = serverEntry->data;      // make single and pair map a ref to data field
+                    break;
                 }
                 m_OutputData[uuidString] = userEntryFromUUID; // key = UUID(shorten), data = DataEntry_t
 
@@ -497,7 +562,7 @@ Server::performAction(uint32_t actionType)
 
         }
         break;
-
+    }
     }
     if (rv)
     {
@@ -509,7 +574,10 @@ Server::performAction(uint32_t actionType)
         else {
             m_File->writeJsonData("specificUser.json", m_OutputData);
         }
+
         m_File->writeJsonData("server.json", m_ServerData);
+
+        //m_File->writeJsonData("server.json", m_ServerData);
     }
     return rv;
 }
