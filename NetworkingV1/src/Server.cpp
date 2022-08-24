@@ -162,16 +162,11 @@ Server::StringMap_t
 Server::getKeys(std::string key, FileHandler::DataEntry_t& userEntryFromUUID, Entry_t* entry)
 {
     Server::StringMap_t            rv;
-    do
-    {
+    //do {} while (false);///<pseudoloop
+    FileHandler::StringPairMap_t  pairMap = *entry->pairMap;
 
-
-while(false);///<pseudoloop
-}
-    FileHandler::StringPairMap_t* pairMap = entry->pairMap;
-
-    FileHandler::StringPairMapIt_t publicKeyIt = pairMap->find(key);
-    if (pairMap->end() == publicKeyIt)
+    FileHandler::StringPairMapIt_t publicKeyIt = pairMap.find(key);
+    if (pairMap.end() == publicKeyIt)
     {
         entry->type = TYPE_PRIVATE;
         FileHandler::StringSingleMap_t nodataEntry;
