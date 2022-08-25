@@ -18,6 +18,7 @@ public:
         FIND_PLAYER_UUID,
         GATHER_CLIENT_DATA,
         LOAD_SERVER_DATA,
+        TRANSFER_LOCAL_PLAYER_ENTRIES,
         RETRIEVE_ALLOWED_SERVER_DATA,
         KEY_LIST_NOACTION,
         KEY_LIST_MARKED,
@@ -32,8 +33,8 @@ public:
     {
         
         FileHandler::DataEntry_t       data;
-        FileHandler::StringPairMap_t  pairMap;
-        FileHandler::StringSingleMap_t  singleMap;
+        //FileHandler::StringPairMap_t  pairMap;
+        //FileHandler::StringSingleMap_t  singleMap;
         std::string                     key;
         size_t                          singleCount;
         size_t                          pairCount;

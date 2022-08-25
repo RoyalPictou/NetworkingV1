@@ -21,7 +21,12 @@ Server::readData(std::string& data)
     bool result = false;
     do
     {
-        if (m_OutputData.empty() && m_UserData.empty())
+        if (!m_OutputData.empty())
+        {
+            performAction2(TRANSFER_LOCAL_PLAYER_ENTRIES);
+            continue;
+        }
+        if ( m_UserData.empty())
         {
             performAction2(LOAD_SERVER_DATA);
             performAction2(GENERATE_PLAYER_UUID);
@@ -34,7 +39,7 @@ Server::readData(std::string& data)
             {
                 break;
             }
-            performAction2(GENERATE_PLAYER_UUID);
+            performAction2(TRANSFER_LOCAL_PLAYER_ENTRIES);
             break;
         }
     } while (true);
@@ -88,11 +93,11 @@ Server::createEntry(EntryPair_t entry, Entry_t* data)
     // if ( data )
     //{
     data->key = entry.first;
-    data->data = &entry.second;
-    data->pairMap = &data->data->arrayEntry; // .data->arrayEntry;
-    data->singleMap = &data->data->singleEntry;
-    data->singleCount = data->singleMap->size();
-    data->pairCount = data->pairMap->size();
+    data->data = entry.second;
+    //data->pairMap = &data->data->arrayEntry; // .data->arrayEntry;
+    //data->singleMap = &data->data->singleEntry;
+    data->singleCount = data->data.singleEntry.size();
+    data->pairCount = data->data.singleEntry.size();
     data->type = TYPE_UNKNOWN;
     if (data->pairCount + data->singleCount)
     {
@@ -163,7 +168,7 @@ Server::getKeys(std::string key, FileHandler::DataEntry_t& userEntryFromUUID, En
 {
     Server::StringMap_t            rv;
     //do {} while (false);///<pseudoloop
-    FileHandler::StringPairMap_t  pairMap = *entry->pairMap;
+    FileHandler::StringPairMap_t  pairMap = entry->data.arrayEntry;
     if (pairMap.empty())
     {
         return rv;
@@ -263,8 +268,19 @@ Server::performAction2(uint32_t actionType)
     switch (actionType)
     {
     default:
+    {
         printf("Unkown communication type -> Check Server::performAction\n");
         break;
+    }
+    case TRANSFER_LOCAL_PLAYER_ENTRIES:
+    {
+        for (auto& entry : m_OutputData)
+        {
+            m_UserData[entry.first] = entry.second;
+        }
+        m_OutputData.clear();
+        break;
+    }
     case GENERATE_PLAYER_UUID:
     {
         SimpleUUID id;
@@ -275,8 +291,13 @@ Server::performAction2(uint32_t actionType)
         firstData["level"] = "1";
         firstData["firstLogin"] = currentDateTime();
 
-        m_ServerData[uuidString].singleEntry = firstData;
+
         m_UserData[uuidString].singleEntry = firstData;
+        m_ServerData[uuidString].singleEntry = firstData;
+
+
+
+
         break;
     }
     case LOAD_SERVER_DATA:
@@ -330,7 +351,7 @@ Server::performAction2(uint32_t actionType)
 
 
                     // look up key for deleting whole UUID entry
-                    FileHandler::StringSingleMap_t & singleMap = *userEntry->singleMap;
+                    FileHandler::StringSingleMap_t& singleMap = userEntry->data.singleEntry;
                     FileHandler::StringSingleMapIt_t deleteUserIt = singleMap.find("deleteUser");
                     if (deleteUserIt != singleMap.cend())
                     {
@@ -347,9 +368,9 @@ Server::performAction2(uint32_t actionType)
                     for (auto& userSingleKey : singleMap)
                     {
 
-                        serverEntry->singleMap->at(userSingleKey.first) = userSingleKey.second;
+                        serverEntry->data.singleEntry.at(userSingleKey.first) = userSingleKey.second;
                     }
-                    FileHandler::StringPairMap_t& pairMap = *userEntry->pairMap;
+                    FileHandler::StringPairMap_t& pairMap = userEntry->data.arrayEntry;
                     FileHandler::StringPairMapIt_t deleteIt = pairMap.find("deleteKeys");
                     if (pairMap.end() != deleteIt)
                     {
@@ -365,7 +386,7 @@ Server::performAction2(uint32_t actionType)
                         FileHandler::StringSingleMap_t userDataArrayMap = userDataArray.values;
                         for (auto& userPairMapValues : userDataArrayMap)
                         {
-                            serverEntry->pairMap->at(userPairMapEntry.first).values[userPairMapValues.first] = userPairMapValues.second;
+                            serverEntry->data.arrayEntry.at(userPairMapEntry.first).values[userPairMapValues.first] = userPairMapValues.second;
                         }
                     }
 
@@ -395,7 +416,7 @@ Server::performAction2(uint32_t actionType)
                 {
 
                 case TYPE_PUBLIC:
-                    for (auto& singleKey : *serverEntry->singleMap)
+                    for (auto& singleKey : serverEntry->data.singleEntry)
                     {
                         keyComponent = findKey(publicKeyMap, singleKey.first);
                         if (KEY_LIST_EMPTY == keyComponent.action)
@@ -407,7 +428,7 @@ Server::performAction2(uint32_t actionType)
                             userEntryFromUUID.singleEntry[singleKey.first] = singleKey.second;
                         }
                     }
-                    for (auto& pairMapEntry : *serverEntry->pairMap)
+                    for (auto& pairMapEntry : serverEntry->data.arrayEntry)
                     {
                         std::string arrayKey = pairMapEntry.first;
                         if (0 == arrayKey.compare("public"))
@@ -452,9 +473,9 @@ Server::performAction2(uint32_t actionType)
                     break;
                 case TYPE_ALL:
                     //FileHandler::StringSingleMap_t & singlemap = serverEntry->singleMap;
-                    singleTt = serverEntry->singleMap->begin();
+                    singleTt = serverEntry->data.singleEntry.begin();
                     //FileHandler::StringSingleMapIt_t singleCurrentIt;
-                    while (singleTt != serverEntry->singleMap->cend())
+                    while (singleTt != serverEntry->data.singleEntry.cend())
                     {
                         keyComponent = findKey(deleteKeyMap, singleTt->first);
                         singleCurrentIt = singleTt++;
@@ -464,12 +485,12 @@ Server::performAction2(uint32_t actionType)
                         }
                         if (KEY_LIST_MARKED == keyComponent.action)
                         {
-                            serverEntry->singleMap->erase(singleCurrentIt);
+                            serverEntry->data.singleEntry.erase(singleCurrentIt);
                         }
                     }
-                    pairIt = serverEntry->pairMap->begin();
+                    pairIt = serverEntry->data.arrayEntry.begin();
                     //FileHandler::StringPairMapIt_t userPairCurrentIt;
-                    while (pairIt != serverEntry->pairMap->cend())
+                    while (pairIt != serverEntry->data.arrayEntry.cend())
                     {
                         std::string arrayKey = pairIt->first;
                         if (0 == arrayKey.compare("deleteKeys")) // weird
@@ -483,7 +504,7 @@ Server::performAction2(uint32_t actionType)
                             userPairCurrentIt = pairIt++;
                             std::string eraseKey = userPairCurrentIt->first;
                             //userEntryFromUUID.arrayEntry.erase( eraseKey );
-                            serverEntry->pairMap->erase(eraseKey);
+                            serverEntry->data.arrayEntry.erase(eraseKey);
                             continue; // No more actions after deleting whole array
                         }
                         if (KEY_LIST_EMPTY == keyComponent.action)
@@ -528,11 +549,10 @@ Server::performAction2(uint32_t actionType)
                         userPairCurrentIt = pairIt++; // could also be serverPairCurrentIt
                         if (userPairCurrentIt->second.values.empty())
                         {
-                            serverEntry->pairMap->erase(userPairCurrentIt);
+                            serverEntry->data.arrayEntry.erase(userPairCurrentIt);
                         }
                     }
-                    userEntryFromUUID.singleEntry = *serverEntry->singleMap; // bad copy instructions
-                    userEntryFromUUID.arrayEntry = *serverEntry->pairMap;
+                    userEntryFromUUID = serverEntry->data; // bad copy instructions
                     break;
                 default:
                     break;
@@ -602,9 +622,9 @@ for (auto& serverArrays : serverData.arrayEntry)
         if (0 == serverArrayKeys.second.compare("true"))
         {
             break;
-        }
-        publicKeyList.push_back(serverArrayKeys.first);
     }
+        publicKeyList.push_back(serverArrayKeys.first);
+}
 }
 
 #endif
