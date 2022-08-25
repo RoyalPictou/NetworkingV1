@@ -31,9 +31,9 @@ public:
     typedef struct
     {
         
-        FileHandler::DataEntry_t      * data;
-        FileHandler::StringPairMap_t  * pairMap;
-        FileHandler::StringSingleMap_t * singleMap;
+        FileHandler::DataEntry_t       data;
+        FileHandler::StringPairMap_t  pairMap;
+        FileHandler::StringSingleMap_t  singleMap;
         std::string                     key;
         size_t                          singleCount;
         size_t                          pairCount;

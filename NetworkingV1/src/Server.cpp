@@ -164,7 +164,10 @@ Server::getKeys(std::string key, FileHandler::DataEntry_t& userEntryFromUUID, En
     Server::StringMap_t            rv;
     //do {} while (false);///<pseudoloop
     FileHandler::StringPairMap_t  pairMap = *entry->pairMap;
-
+    if (pairMap.empty())
+    {
+        return rv;
+    }
     FileHandler::StringPairMapIt_t publicKeyIt = pairMap.find(key);
     if (pairMap.end() == publicKeyIt)
     {
@@ -327,8 +330,9 @@ Server::performAction2(uint32_t actionType)
 
 
                     // look up key for deleting whole UUID entry
-                    FileHandler::StringSingleMapIt_t deleteUserIt = userEntry->singleMap->find("deleteUser");
-                    if (deleteUserIt != userEntry->singleMap->cend())
+                    FileHandler::StringSingleMap_t & singleMap = *userEntry->singleMap;
+                    FileHandler::StringSingleMapIt_t deleteUserIt = singleMap.find("deleteUser");
+                    if (deleteUserIt != singleMap.cend())
                     {
                         //Entry found, now check if param ist set to true
                         if (0 == deleteUserIt->second.compare("true"))
@@ -340,7 +344,7 @@ Server::performAction2(uint32_t actionType)
                         }
                     }
 
-                    for (auto& userSingleKey : *userEntry->singleMap)
+                    for (auto& userSingleKey : singleMap)
                     {
 
                         serverEntry->singleMap->at(userSingleKey.first) = userSingleKey.second;
